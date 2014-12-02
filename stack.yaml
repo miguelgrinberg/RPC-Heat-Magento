@@ -108,7 +108,7 @@ resources:
   coms:
     type: OS::Nova::KeyPair
     properties:
-      save_private_key: true 
+      save_private_key: true
       name:
         str_replace:
           template: magento-$stackstr-coms
@@ -116,7 +116,7 @@ resources:
             $stackstr:
               get_attr:
                 - stack-string
-                - value 
+                - value
 
   # Private network for this stack
   net:
@@ -138,7 +138,7 @@ resources:
     type: OS::Neutron::Router
     properties:
       external_gateway_info:
-        network: 
+        network:
           get_param: floating-network-id
 
   # Router interface
@@ -147,21 +147,21 @@ resources:
     properties:
       router_id:
         get_resource: router
-      subnet_id: 
+      subnet_id:
         get_resource: subnet
 
   # One floating ip for the salt-master node
   master-ip:
     type: OS::Neutron::FloatingIP
     properties:
-      floating_network_id: 
+      floating_network_id:
         get_param: floating-network-id
 
   # One port for the salt-master node
   master-port:
     type: OS::Neutron::Port
     properties:
-      network_id: 
+      network_id:
         get_resource: net
       security_groups:
         - get_resource: secgroup
@@ -177,7 +177,7 @@ resources:
         - name: public_key
         - name: state_repos
       config: |
-        #!/bin/bash
+        #!/bin/bash -ex
         chmod 0700 /root/.ssh/coms_rsa
         chmod 0600 /srv/pillar/magento.sls
 
@@ -186,7 +186,7 @@ resources:
 
         # Install git
         apt-get install -y git
-            
+
         # Install salt master
         echo "Install Salt Master"
         curl -L http://bootstrap.saltstack.org | sh -s -- -M -N
@@ -220,9 +220,9 @@ resources:
         - name: public_key
         - name: master
       config: |
-        #!/bin/bash
+        #!/bin/bash -ex
         chmod 0700 /root/.ssh/coms_rsa
-            
+
         # Add coms from minions to master
         echo "$public_key" >> /root/.ssh/authorized_keys
 
@@ -234,13 +234,14 @@ resources:
 
         ssh-keyscan -H $master >> /root/.ssh/known_hosts
 
-        echo "Sleeping for 20s"
-        sleep 20
-
         MASTER_PKI_PATH="/etc/salt/pki/master/minions/"
         MASTER_PKI_PATH_PRE="/etc/salt/pki/master/minions_pre/"
         MINION_PKI_PATH="/etc/salt/pki/minion/minion.pub"
-        HOSTNAME=`hostname --fqdn`
+        HOSTNAME=`python -c 'import socket; print socket.getfqdn()'`
+
+        while [ ! -f $MINION_PKI_PATH ]; do
+            sleep 5
+        done
 
         cp $MINION_PKI_PATH /root/minion_key
 
@@ -279,7 +280,7 @@ resources:
     properties:
       key_name:
         get_param: keyname
-      image: 
+      image:
         get_param: image
       flavor:
         get_param: flavor
@@ -351,7 +352,7 @@ resources:
               - /var/www/var/session/*
               - /var/www/media/catalog/product/cache*
               - /var/www/var/locks/*
- 
+
         # The magento.sls pillar. Describe database account info for magento
         # This file should have its permissions changed during software
         # Configuration
@@ -401,9 +402,9 @@ resources:
       user_data_format: SOFTWARE_CONFIG
 
   # Associate the master floating ip to the master port
-  master-floating-ip-ass: 
+  master-floating-ip-ass:
     type: OS::Neutron::FloatingIPAssociation
-    properties: 
+    properties:
       floatingip_id:
         get_resource: master-ip
       port_id:
@@ -458,14 +459,14 @@ resources:
   minion-web-haproxy-ip:
     type: OS::Neutron::FloatingIP
     properties:
-      floating_network_id: 
+      floating_network_id:
         get_param: floating-network-id
 
   # Port for haproxy node
   minion-web-haproxy-port:
     type: OS::Neutron::Port
     properties:
-      network_id: 
+      network_id:
         get_resource: net
       security_groups:
         - get_resource: secgroup
@@ -499,7 +500,7 @@ resources:
         /etc/salt/grains: |
           roles:
             - web-haproxy
-      
+
       networks:
         - port:
             get_resource: minion-web-haproxy-port
@@ -508,9 +509,9 @@ resources:
       user_data_format: SOFTWARE_CONFIG
 
   # Associate haproxy floating ip to the port
-  minion-web-haproxy-floating-ip-ass: 
+  minion-web-haproxy-floating-ip-ass:
     type: OS::Neutron::FloatingIPAssociation
-    properties: 
+    properties:
       floatingip_id:
         get_resource: minion-web-haproxy-ip
       port_id:
@@ -733,7 +734,7 @@ resources:
 outputs:
   master-ip:
     description: The salt master. SSH here first to get into the other vms.
-    value: 
+    value:
       get_attr:
         - master-ip
         - floating_ip_address
@@ -751,7 +752,7 @@ outputs:
       get_attr:
         - minion-db-haproxy
         - first_address
-  
+
   minion-web-ips:
     value:
       get_attr:
